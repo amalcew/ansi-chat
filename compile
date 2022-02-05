@@ -1,0 +1,5 @@
+#!/bin/bash
+
+gcc -Wall server.c -o build/server
+gcc -Wall client_1.c -o build/client1
+gcc -Wall client_2.c -o build/client2

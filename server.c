@@ -1,9 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <signal.h>
-#include <unistd.h>
 #include <time.h>
-#include <sys/time.h>
 #include <sys/ipc.h>
 #include <sys/msg.h>
 #include <string.h>
@@ -45,14 +43,20 @@ int main(){
         if ((queue[i] = msgget(i, IPC_CREAT | 0666)) == -1) {
             perror("Error creating queue");
             exit(-1);
+        } else {
+            char *now = getTime();
+            printf("%s creating queue%d\n", now, i);
+            free(now);
         }
     }
 
     while (!done) {
         if (msgrcv(queue[10], &buf, sizeof msg.msgText, 0, IPC_NOWAIT) != -1) {
+
             char *now = getTime();
             printf("%s %d -> %ld\n", now, buf.msgSender, buf.msgType);
             free(now);
+
             if (msgsnd(queue[buf.msgType], &buf, sizeof buf.msgText, 0) == -1) {
                 perror("Error sending message");
             }
@@ -60,7 +64,7 @@ int main(){
     }
 
     while (done) {
-        
+        exit(0);
     }
 
     return 0;
