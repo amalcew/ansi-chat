@@ -6,11 +6,11 @@
 #include <sys/ipc.h>
 #include <sys/msg.h>
 
-#include "msg.h"
-#include "colors.h"
+#include "headers/msg.h"
+#include "headers/colors.h"
 
 int main(){
-    int id = 1;
+    int id = 2;
     key_t ownKey = id, serverKey = 10;
     int ownQueue, serverQueue;
     queuedMessage msg;
@@ -42,7 +42,7 @@ int main(){
                 printf("Exiting...\n");
                 exit(0);
             }
-            msg.msgType = 2;
+            msg.msgType = 1;
             msg.msgSender = id;
 
             if (msgsnd(serverQueue, &msg, sizeof msg.msgText, 0) == -1) {

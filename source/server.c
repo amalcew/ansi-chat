@@ -7,17 +7,11 @@
 #include <string.h>
 #include <errno.h>
 
-#include "colors.h"
-#include "msg.h"
+#include "headers/colors.h"
+#include "headers/msg.h"
+#include "headers/aux.h"
 
 volatile sig_atomic_t done = 0;
-
-char * getTime() {
-    char *buff = malloc(21);
-    time_t now = time (0);
-    strftime (buff, 100, "[%Y-%m-%d %H:%M:%S]", localtime (&now));
-    return buff;
-}
 
 void catchSignal(int signum) {
     printf("\n" ANSI_COLOR_YELLOW "Exiting gracefully..." ANSI_COLOR_RESET "\n");

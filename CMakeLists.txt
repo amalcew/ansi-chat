@@ -3,6 +3,7 @@ project(ansi_irc C)
 
 set(CMAKE_C_STANDARD 11)
 
-add_executable(client1 client_1.c)
-add_executable(client2 client_2.c)
-add_executable(server server.c)
+add_executable(test test.c)
+add_executable(client1 source/client_1.c)
+add_executable(client2 source/client_2.c)
+add_executable(server source/server.c source/aux.c source/user.c)

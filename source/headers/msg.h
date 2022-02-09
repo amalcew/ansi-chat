@@ -3,7 +3,7 @@
 
 #define MSG_SIZE 256
 
-typedef struct {
+typedef struct messageStructure {
     long msgType;
     int msgSender;
     char msgText[MSG_SIZE];
