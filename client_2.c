@@ -10,7 +10,8 @@
 #include "colors.h"
 
 int main(){
-    key_t ownKey = 2, serverKey = 10;
+    int id = 2;
+    key_t ownKey = id, serverKey = 10;
     int ownQueue, serverQueue;
     queuedMessage msg;
 
@@ -30,7 +31,7 @@ int main(){
         exit(-1);
     } else if (pid == 0) {
         while (1) {
-            if (msgrcv(ownQueue, &msg, sizeof msg.msgText, 1, IPC_NOWAIT) != -1) {
+            if (msgrcv(ownQueue, &msg, sizeof msg.msgText, id, IPC_NOWAIT) != -1) {
                 printf(ANSI_COLOR_GREEN "test%d: %s" ANSI_COLOR_RESET "\n", msg.msgSender, msg.msgText);
             }
         }
@@ -42,7 +43,7 @@ int main(){
                 exit(0);
             }
             msg.msgType = 1;
-            msg.msgSender = 2;
+            msg.msgSender = id;
 
             if (msgsnd(serverQueue, &msg, sizeof msg.msgText, 0) == -1) {
                 perror("Error sending message");

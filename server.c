@@ -25,7 +25,7 @@ void catchSignal(int signum) {
 }
 
 int main(){
-    int queue[10];
+    int queue[11];
     queuedMessage msg, buf;
     struct msqid_ds msgCtlBuf;
 
