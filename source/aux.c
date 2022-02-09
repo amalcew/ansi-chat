@@ -1,7 +1,3 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <time.h>
-
 #include "headers/aux.h"
 
 int countLines(char* path) {
