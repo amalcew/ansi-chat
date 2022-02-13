@@ -1,13 +1,13 @@
 #include "headers/server.h"
 
 int main(){
-    // TODO [server]: make module more simple and make comments
+    // TODO: make module more simple and make comments
     user *users = importFromFile(path);
     int userQuantity = countLines(path);
 
     int serverQueue, authQueue;
     int userQueue[userQuantity];
-    queuedMessage msg, buf;
+    queuedMessage buf;
     struct msqid_ds msgCtlBuf;
 
     time_t t;
@@ -32,12 +32,12 @@ int main(){
 
     if ((serverQueue = msgget(serverKey, IPC_CREAT | 0666)) == -1) {
         char *now = getTime();
-        printf("%s" ANSI_COLOR_RED " ERROR CREATING SERVER QUEUE" ANSI_COLOR_RESET " (error code no. %d):" ANSI_COLOR_RED " %s" ANSI_COLOR_RESET "\n", now, errno, strerror(errno));
+        printf("%s" ANSI_COLOR_RED " ERROR CREATING MESSAGE QUEUE" ANSI_COLOR_RESET " (error code no. %d):" ANSI_COLOR_RED " %s" ANSI_COLOR_RESET "\n", now, errno, strerror(errno));
         free(now);
         exit(-1);
     } else {
         char *now = getTime();
-        printf("%s" ANSI_COLOR_BLUE " GENERATING SERVER QUEUE" ANSI_COLOR_RESET " - key: %d, queue_id: %d\n", now, serverKey, serverQueue);
+        printf("%s" ANSI_COLOR_BLUE " GENERATING MESSAGE QUEUE" ANSI_COLOR_RESET " - key: %d, queue_id: %d\n", now, serverKey, serverQueue);
         free(now);
     }
 
@@ -56,28 +56,64 @@ int main(){
     }
 
     while (running) {
-        if (msgrcv(authQueue, &buf, sizeof msg.msgText, 99, IPC_NOWAIT) != -1) {
-            size_t len = 0;
+        // user authentication
+        if (msgrcv(authQueue, &buf, sizeof buf.msgText, 99, IPC_NOWAIT) != -1) {
             bool success = false;
             int key;
             char delimiters[] = " ,.-:;";
             char* token;
-            char* login[128], password[128];
+            char* login[32], password[32];
 
             token = strtok(buf.msgText, delimiters);
-            strcpy(login, token);
-            token = strtok(NULL, delimiters);
-            strcpy(password, token);
 
-            for (int j = 0; j < userQuantity; j++) {
-                if ((strcmp(users[j].login, login) == 0) && (strcmp(users[j].password, password) == 0)) {
-                    key = users[j].key;
-                    success = true;
-                    break;
+            if (strcmp(token, "LOGIN") == 0) {
+                token = strtok(NULL, delimiters);
+                strcpy(login, token);
+                token = strtok(NULL, delimiters);
+                strcpy(password, token);
+
+                for (int j = 0; j < userQuantity; j++) {
+                    if ((strcmp(users[j].login, login) == 0) && (strcmp(users[j].password, password) == 0)) {
+                        key = users[j].key;
+                        users[j].active = true;
+                        success = true;
+                        break;
+                    }
+                }
+                if (success) {
+                    sprintf(&buf.msgText, "TRUE:%s:%s:%d", login, password, key);
+                    buf.msgType = 98;
+                    if (msgsnd(authQueue, &buf, sizeof buf.msgText, 0) == -1) {
+                        char *now = getTime();
+                        printf("%s" ANSI_COLOR_RED " ERROR SENDING MESSAGE" ANSI_COLOR_RESET " (error code no. %d):" ANSI_COLOR_RED " %s" ANSI_COLOR_RESET "\n", now, errno, strerror(errno));
+                        free(now);
+                    }
+                    char *now = getTime();
+                    printf("%s" ANSI_COLOR_GREEN " LOGIN ATTEMPT SUCCESSFUL" ANSI_COLOR_RESET " - passed credentials: %s, %s\n", now, login, password);
+                    free(now);
+                } else {
+                    strcpy(buf.msgText, "FALSE");
+                    buf.msgType = 98;
+                    if (msgsnd(authQueue, &buf, sizeof buf.msgText, 0) == -1) {
+                        char *now = getTime();
+                        printf("%s" ANSI_COLOR_RED " ERROR SENDING MESSAGE" ANSI_COLOR_RESET " (error code no. %d):" ANSI_COLOR_RED " %s" ANSI_COLOR_RESET "\n", now, errno, strerror(errno));
+                        free(now);
+                    }
+                    char *now = getTime();
+                    printf("%s" ANSI_COLOR_YELLOW " LOGIN ATTEMPT FAILED" ANSI_COLOR_RESET " - passed credentials: %s, %s\n", now, login, password);
+                    free(now);
                 }
             }
-            if (success) {
-                sprintf(&buf.msgText, "TRUE:%d", key);
+            if (strcmp(token, "LOGOUT") == 0) {
+                token = strtok(NULL, delimiters);
+                strcpy(login, token);
+                for (int j = 0; j < userQuantity; j++) {
+                    if (strcmp(users[j].login, login) == 0) {
+                        users[j].active = false;
+                        break;
+                    }
+                }
+                strcpy(buf.msgText, "OK");
                 buf.msgType = 98;
                 if (msgsnd(authQueue, &buf, sizeof buf.msgText, 0) == -1) {
                     char *now = getTime();
@@ -85,23 +121,74 @@ int main(){
                     free(now);
                 }
                 char *now = getTime();
-                printf("%s" ANSI_COLOR_GREEN " LOGIN ATTEMPT SUCCESSFUL" ANSI_COLOR_RESET " - passed credentials: %s, %s\n", now, login, password);
+                printf("%s" ANSI_COLOR_GREEN " USER LOGOUT" ANSI_COLOR_RESET " - passed credentials: %s\n", now, login);
                 free(now);
-            } else {
-                sprintf(&buf.msgText, "FALSE");
-                buf.msgType = 98;
-                if (msgsnd(authQueue, &buf, sizeof buf.msgText, 0) == -1) {
-                    char *now = getTime();
-                    printf("%s" ANSI_COLOR_RED " ERROR SENDING MESSAGE" ANSI_COLOR_RESET " (error code no. %d):" ANSI_COLOR_RED " %s" ANSI_COLOR_RESET "\n", now, errno, strerror(errno));
-                    free(now);
-                }
-                char *now = getTime();
-                printf("%s" ANSI_COLOR_YELLOW " LOGIN ATTEMPT FAILED" ANSI_COLOR_RESET " - passed credentials: %s, %s\n", now, login, password);
-                free(now);
+
             }
         }
 
-        if (msgrcv(serverQueue, &buf, sizeof msg.msgText, 0, IPC_NOWAIT) != -1) {
+        // users listing
+        if (msgrcv(authQueue, &buf, sizeof buf.msgText, 199, IPC_NOWAIT) != -1) {
+            char delimiters[] = " ,.-:;";
+            char* token;
+            token = strtok(buf.msgText, delimiters);
+
+            if (strcmp(token, "LIST_USERS") == 0) {
+                strcpy(buf.msgText, "");
+                for (int j = 0; j < userQuantity; j++) {
+                    strcat(buf.msgText, users[j].login);
+                    if (users[j].active) {
+                        strcat(buf.msgText, " - active\n");
+                    } else {
+                        strcat(buf.msgText, " - inactive\n");
+                    }
+                }
+                buf.msgType = 198;
+                if (msgsnd(authQueue, &buf, sizeof buf.msgText, 0) == -1) {
+                    char *now = getTime();
+                    printf("%s" ANSI_COLOR_RED " ERROR SENDING MESSAGE" ANSI_COLOR_RESET " (error code no. %d):" ANSI_COLOR_RED " %s" ANSI_COLOR_RESET "\n", now, errno, strerror(errno));
+                    free(now);
+                } else {
+                    char *now = getTime();
+                    printf("%s" ANSI_COLOR_BLUE " SENDING USERS LIST" ANSI_COLOR_RESET "\n", now);
+                    free(now);
+                }
+            }
+
+            if (strcmp(token, "USER") == 0) {
+                bool success = false;
+                int key;
+                token = strtok(NULL, delimiters);
+
+                for (int j = 0; j < userQuantity; j++) {
+                    if (strcmp(users[j].login, token) == 0) {
+                        success = true;
+                        key = users[j].key;
+                        break;
+                    }
+                }
+                if (success) {
+                    sprintf(&buf.msgText, "TRUE:%d", key);
+                    buf.msgType = 198;
+                    if (msgsnd(authQueue, &buf, sizeof buf.msgText, 0) == -1) {
+                        char *now = getTime();
+                        printf("%s" ANSI_COLOR_RED " ERROR SENDING MESSAGE" ANSI_COLOR_RESET " (error code no. %d):" ANSI_COLOR_RED " %s" ANSI_COLOR_RESET "\n", now, errno, strerror(errno));
+                        free(now);
+                    }
+                } else {
+                    strcpy(buf.msgText, "FALSE");
+                    buf.msgType = 198;
+                    if (msgsnd(authQueue, &buf, sizeof buf.msgText, 0) == -1) {
+                        char *now = getTime();
+                        printf("%s" ANSI_COLOR_RED " ERROR SENDING MESSAGE" ANSI_COLOR_RESET " (error code no. %d):" ANSI_COLOR_RED " %s" ANSI_COLOR_RESET "\n", now, errno, strerror(errno));
+                        free(now);
+                    }
+                }
+            }
+        }
+
+        // message forwarding
+        if (msgrcv(serverQueue, &buf, sizeof buf.msgText, 0, IPC_NOWAIT) != -1) {
 
             char *now = getTime();
             printf("%s" ANSI_COLOR_BLUE " RECEIVED MESSAGE" ANSI_COLOR_RESET " on queue_id: %d, channel: %d, content: " ANSI_COLOR_MAGENTA "%s" ANSI_COLOR_RESET "\n", now, serverQueue, buf.msgType, buf.msgText);
@@ -124,6 +211,7 @@ int main(){
             perror("Error removing queue");
             exit(-1);
         }
+        free(users);
         return 0;
     }
 }
@@ -158,6 +246,7 @@ user* importFromFile(char* path) {
         strtok(users[index].password, "\n");  // remove "\n" from string
 
         users[index].key = index + 1;
+        users[index].active = false;
         index++;
     }
 

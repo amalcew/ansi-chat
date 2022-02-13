@@ -1,5 +1,4 @@
 #!/bin/bash
 
 gcc -Wall source/server.c source/aux.c -o build/server
-gcc -Wall source/client.c -o build/client1
-gcc -Wall source/client.c -o build/client2
+gcc -Wall source/client.c -o build/client
