@@ -15,7 +15,7 @@ int main(){
         exit(-1);
     }
     printf("Welcome\nselect user to chat: ");
-    char* input[2];
+    char* input[1];
     int choose;
     fgets(input, sizeof(input), stdin);
     sscanf(input, "%d", &choose);
@@ -35,7 +35,7 @@ int main(){
             while (1) {
                 fgets(msg.msgText, sizeof(msg.msgText), stdin);  // read string
                 strtok(msg.msgText, "\n");
-                if (strcmp(msg.msgText, "exit\n") == 0) {
+                if (strcmp(msg.msgText, "?exit") == 0) {
                     printf("Exiting...\n");
                     exit(0);
                 }
