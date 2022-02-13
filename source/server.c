@@ -1,6 +1,7 @@
 #include "headers/server.h"
 
 int main(){
+    // TODO [server]: make module more simple and make comments
     user *users = importFromFile(path);
     int userQuantity = countLines(path);
 
@@ -54,7 +55,7 @@ int main(){
         }
     }
 
-    while (!done) {
+    while (running) {
         if (msgrcv(authQueue, &buf, sizeof msg.msgText, 99, IPC_NOWAIT) != -1) {
             size_t len = 0;
             bool success = false;
@@ -118,7 +119,7 @@ int main(){
         }
     }
 
-    while (done) {
+    while (!running) {
         if (msgctl(authQueue, IPC_RMID, &msgCtlBuf) == -1) {
             perror("Error removing queue");
             exit(-1);
@@ -129,7 +130,7 @@ int main(){
 
 void catchSignal(int signum) {
     printf("\n" ANSI_COLOR_YELLOW "Exiting gracefully..." ANSI_COLOR_RESET "\n");
-    done = 1;
+    running = false;
 }
 
 user* importFromFile(char* path) {

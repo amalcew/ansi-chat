@@ -1,6 +1,7 @@
 #ifndef ANSI_IRC_SERVER_H
 #define ANSI_IRC_SERVER_H
 
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <signal.h>
@@ -15,7 +16,8 @@
 #include "user.h"
 #include "globals.h"
 
-volatile sig_atomic_t done = 0;
+volatile sig_atomic_t running = true;
+
 void catchSignal(int signum);
 
 #endif //ANSI_IRC_SERVER_H
