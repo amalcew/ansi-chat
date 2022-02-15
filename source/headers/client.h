@@ -17,6 +17,7 @@
 void printHelp();
 void printVars(user* usr);
 void chat(user* usr);
-void printUsers();
+void printUsers(user* usr);
+void printGroups(user* usr);
 
 #endif //ANSI_IRC_CLIENT_H

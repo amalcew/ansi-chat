@@ -5,6 +5,7 @@
 
 typedef struct groupStructure {
     char name[BUFF_SIZE];
+    char description[BUFF_SIZE];
     key_t key;
     int queue;
 } group;

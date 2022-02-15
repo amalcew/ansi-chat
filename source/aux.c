@@ -20,6 +20,6 @@ int countLines(char* path) {
 char * getTime() {
     char *buff = malloc(21);
     time_t now = time (0);
-    strftime (buff, 100, "[%Y-%m-%d %H:%M:%S]", localtime (&now));
+    strftime (buff, 100, "%Y-%m-%d %H:%M:%S", localtime (&now));
     return buff;
 }

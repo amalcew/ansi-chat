@@ -20,5 +20,6 @@
 volatile sig_atomic_t running = true;
 
 void catchSignal(int signum);
-
+void logError(char* desc, int errorNum);
+void logAction(char* type, char* desc, char* cred);
 #endif //ANSI_IRC_SERVER_H

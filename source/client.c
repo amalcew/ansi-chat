@@ -21,7 +21,10 @@ int main(){
                 chat(usr);
 
             } else if (strcmp(command, "?list-users") == 0) {
-                printUsers();
+                printUsers(usr);
+
+            } else if (strcmp(command, "?list-groups") == 0) {
+                printGroups(usr);
 
             } else if (strcmp(command, "?leave") == 0) {
                 deauthenticate(usr);
@@ -43,7 +46,8 @@ void printHelp() {
     printf("?help - prints this commands list\n");
     printf("?vars - prints current session variables\n");
     printf("?chat - select the users to chat\n");
-    printf("?list-users - prints user list\n");
+    printf("?list-users - prints users list\n");
+    printf("?list-groups - prints groups list\n");
     printf("?leave - close current session\n");
     printf("?exit - closes the client program\n");
 }
@@ -85,7 +89,7 @@ void chat(user* usr) {
     strtok(select, "\n");  // remove '\n' from user
 
     // prepare message
-    sprintf(message.msgText, "CHAT:%s", select);
+    sprintf(message.msgText, "CHAT:%s:%s", usr->login, select);
     message.msgType = 199;
 
     // send selected username to server
@@ -123,12 +127,10 @@ void chat(user* usr) {
             while (true) {
                 if (strcmp(prefix, "USER") == 0) {
                     if (msgrcv(usr->queue, &message, sizeof message.msgText, usr->key, IPC_NOWAIT) != -1) {
-                        // printf(ANSI_COLOR_GREEN "%s" ANSI_COLOR_RESET, select);
                         printf(ANSI_COLOR_RESET "%s\n" ANSI_COLOR_RESET, message.msgText);
                     }
                 } else if (strcmp(prefix, "GROUP") == 0) {
                     if (msgrcv(usr->queue, &message, sizeof message.msgText, key + 100, IPC_NOWAIT) != -1) {
-                        // printf(ANSI_COLOR_GREEN "%s" ANSI_COLOR_RESET, select);
                         printf(ANSI_COLOR_RESET "%s\n" ANSI_COLOR_RESET, message.msgText);
                     }
                 }
@@ -138,7 +140,7 @@ void chat(user* usr) {
                 // prepare message
                 fgets(input, sizeof(input), stdin);  // read message from stdin
                 strtok(input, "\n");  // remove '\n' from message
-                sprintf(message.msgText, "%s;%s: %s", prefix, usr->login, input);
+                sprintf(message.msgText, "%s:%s:%s:%s", prefix, usr->login, select, input);
                 message.msgType = key;
 
                 // if message is special string, execute command
@@ -169,7 +171,7 @@ void chat(user* usr) {
     }
 }
 
-void printUsers() {
+void printUsers(user* usr) {
     key_t queue;
     queuedMessage message;
 
@@ -180,10 +182,41 @@ void printUsers() {
     }
 
     // prepare message
-    strcpy(message.msgText, "LIST_USERS");
+    strcpy(message.msgText, "LIST_USERS:");
+    strcat(message.msgText, usr->login);
     message.msgType = comTyp;
 
     // send 'LIST_USERS' signal to server
+    if (msgsnd(queue, &message, sizeof message.msgText, IPC_NOWAIT) == -1) {
+        perror("Error sending query");
+        exit(-1);
+    }
+
+    // wait for server response
+    while (true) {
+        if (msgrcv(queue, &message, sizeof message.msgText, comTyp - 1, IPC_NOWAIT) != -1) {
+            printf("%s\n", message.msgText);
+            return;
+        }
+    }
+}
+
+void printGroups(user* usr) {
+    key_t queue;
+    queuedMessage message;
+
+    // initialize server communication queue
+    if ((queue = msgget(authKey, IPC_CREAT | 0666 )) == -1) {
+        perror("Error creating queue");
+        exit(-1);
+    }
+
+    // prepare message
+    strcpy(message.msgText, "LIST_GROUPS:");
+    strcat(message.msgText, usr->login);
+    message.msgType = comTyp;
+
+    // send 'LIST_GROUPS' signal to server
     if (msgsnd(queue, &message, sizeof message.msgText, IPC_NOWAIT) == -1) {
         perror("Error sending query");
         exit(-1);
@@ -296,16 +329,5 @@ void deauthenticate(user* usr) {
     if (msgsnd(queue, &message, sizeof message.msgText, IPC_NOWAIT) == -1) {
         perror("Error sending");
         exit(-1);
-    }
-
-    // wait for server response
-    while (true) {
-        if (msgrcv(queue, &message, sizeof message.msgText, authTyp - 1, IPC_NOWAIT) != -1) {
-            if (strcmp(message.msgText, "OK") == 0) {
-                printf("Logging off\n");
-                free(usr);
-                break;
-            }
-        }
     }
 }
