@@ -62,6 +62,8 @@ void chat(user* usr) {
     key_t key;
 
     char select[32];
+    char input[250];
+    char prefix[32];
 
     char delimiters[] = " ,.-:;";
     char* token;
@@ -78,12 +80,12 @@ void chat(user* usr) {
         exit(-1);
     }
 
-    printf("Select user to chat: ");
+    printf("Type user/group to chat: ");
     fgets(select, sizeof(select), stdin);  // read user from stdin
     strtok(select, "\n");  // remove '\n' from user
 
     // prepare message
-    sprintf(message.msgText, "USER:%s", select);
+    sprintf(message.msgText, "CHAT:%s", select);
     message.msgType = 199;
 
     // send selected username to server
@@ -99,12 +101,13 @@ void chat(user* usr) {
             token = strtok(message.msgText, delimiters);
 
             // if first token is 'TRUE', continue this function the user
-            if (strcmp(token, "TRUE") == 0) {
+            if (!(strcmp(token, "FALSE") == 0)) {
+                strcpy(prefix, token);
                 token = strtok(NULL, delimiters);
                 sscanf(token, "%d", &key);  // convert token to integer
                 break;
             } else {
-                printf(ANSI_COLOR_YELLOW "There is no such user as %s\n" ANSI_COLOR_RESET, select);
+                printf(ANSI_COLOR_YELLOW "There is no such user/group as %s\n" ANSI_COLOR_RESET, select);
                 return;
             }
         }
@@ -118,20 +121,28 @@ void chat(user* usr) {
             exit(-1);
         } else if (pid == 0) {
             while (true) {
-                if (msgrcv(usr->queue, &message, sizeof message.msgText, usr->key, IPC_NOWAIT) != -1) {
-                    printf(ANSI_COLOR_GREEN "%s" ANSI_COLOR_RESET, select);
-                    printf(ANSI_COLOR_RESET ": %s\n" ANSI_COLOR_RESET, message.msgText);
+                if (strcmp(prefix, "USER") == 0) {
+                    if (msgrcv(usr->queue, &message, sizeof message.msgText, usr->key, IPC_NOWAIT) != -1) {
+                        // printf(ANSI_COLOR_GREEN "%s" ANSI_COLOR_RESET, select);
+                        printf(ANSI_COLOR_RESET "%s\n" ANSI_COLOR_RESET, message.msgText);
+                    }
+                } else if (strcmp(prefix, "GROUP") == 0) {
+                    if (msgrcv(usr->queue, &message, sizeof message.msgText, key + 100, IPC_NOWAIT) != -1) {
+                        // printf(ANSI_COLOR_GREEN "%s" ANSI_COLOR_RESET, select);
+                        printf(ANSI_COLOR_RESET "%s\n" ANSI_COLOR_RESET, message.msgText);
+                    }
                 }
             }
         } else {
             while (true) {
                 // prepare message
-                fgets(message.msgText, sizeof(message.msgText), stdin);  // read message from stdin
-                strtok(message.msgText, "\n");  // remove '\n' from message
+                fgets(input, sizeof(input), stdin);  // read message from stdin
+                strtok(input, "\n");  // remove '\n' from message
+                sprintf(message.msgText, "%s;%s: %s", prefix, usr->login, input);
                 message.msgType = key;
 
                 // if message is special string, execute command
-                if (strcmp(message.msgText, "?exit") == 0) {
+                if (strcmp(input, "?exit") == 0) {
                     printf("Exiting...\n");
                     if (kill(pid, SIGTERM) == -1) {
                         perror("Error killing child process");
@@ -139,13 +150,15 @@ void chat(user* usr) {
                     wait(&pid);  // wait for child process to end not to generate zombies
                     deauthenticate(usr);
                     exit(0);
-                } else if (strcmp(message.msgText, "?back") == 0) {
+
+                } else if (strcmp(input, "?back") == 0) {
                     if (kill(pid, SIGTERM) == -1) {
                         perror("Error killing child process");
                     }
                     wait(&pid);  // wait for child process to end not to generate zombies
                     return;
-                } else {
+
+                } else {;
                     if (msgsnd(mQueue, &message, sizeof message.msgText, IPC_NOWAIT) == -1) {
                         perror("Error sending message");
                         exit(-1);

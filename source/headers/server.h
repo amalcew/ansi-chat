@@ -14,6 +14,7 @@
 #include "message.h"
 #include "aux.h"
 #include "user.h"
+#include "group.h"
 #include "globals.h"
 
 volatile sig_atomic_t running = true;

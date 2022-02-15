@@ -1,4 +1,9 @@
-test1:q1w2e3r4
-test2:qwerty
-test3:changeMe
-test4:skld3815
+USER:test1:q1w2e3r4
+USER:test2:qwerty
+USER:test3:changeMe
+USER:test4:password
+USER:test5:123456
+USER:test6:mynameistes6
+USER:test7:abcdefgh
+USER:test8:
+USER:test9:xyz

@@ -1,0 +1,14 @@
+#ifndef ANSI_IRC_GROUP_H
+#define ANSI_IRC_GROUP_H
+
+#define BUFF_SIZE 256
+
+typedef struct groupStructure {
+    char name[BUFF_SIZE];
+    key_t key;
+    int queue;
+} group;
+
+group* groupsFromFile(char* path);
+
+#endif //ANSI_IRC_GROUP_H

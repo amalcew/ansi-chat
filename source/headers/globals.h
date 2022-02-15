@@ -9,7 +9,8 @@
 #define ANSI_COLOR_CYAN    "\x1b[36m"
 #define ANSI_COLOR_RESET   "\x1b[0m"
 
-char* path = "/home/caribou/dev/working/ansi-irc/config/users";
+char* groupPath = "/home/caribou/dev/working/ansi-irc/config/groups";
+char* userPath = "/home/caribou/dev/working/ansi-irc/config/users";
 
 key_t authKey = 9999;
 key_t serverKey = 2151;
