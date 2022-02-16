@@ -201,12 +201,13 @@ int main(){
         if (msgrcv(serverQueue, &buf, sizeof buf.msgText, 0, IPC_NOWAIT) != -1) {
 
             char* delimiter = ":";
-            char mode[32], who[32], toWho[32], content[256];
+            char mode[32], who[32], toWho[32];
+            char *content = NULL;
 
             strcpy(mode, strtok(buf.msgText, delimiter));
             strcpy(who, strtok(NULL, delimiter));
             strcpy(toWho, strtok(NULL, delimiter));
-            strcpy(content, strtok(NULL, delimiter));
+            content = strtok(NULL, delimiter);
 
             if (strcmp(mode, "USER") == 0) {
                 logAction("FORWARD", "message received", "");

@@ -1,7 +1,7 @@
 #ifndef ANSI_IRC_MESSAGE_H
 #define ANSI_IRC_MESSAGE_H
 
-#define MSG_SIZE 256
+#define MSG_SIZE 1024
 
 typedef struct messageStructure {
     long msgType;
