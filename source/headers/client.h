@@ -17,6 +17,8 @@
 void printHelp();
 void printVars(user* usr);
 void chat(user* usr);
+void subscribe(user* usr);
+void unsubscribe(user* usr);
 void printUsers(user* usr);
 void printGroups(user* usr);
 

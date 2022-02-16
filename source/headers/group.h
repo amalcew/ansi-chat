@@ -8,6 +8,7 @@ typedef struct groupStructure {
     char description[BUFF_SIZE];
     key_t key;
     int queue;
+    int subscriptions[32];
 } group;
 
 group* groupsFromFile(char* path);

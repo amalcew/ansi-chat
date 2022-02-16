@@ -52,8 +52,13 @@ int main(){
             exit(-1);
         } else {
             groups[i].queue = groupQueue;
-            logAction("INFO", "initializing user queue", "");
+            logAction("INFO", "initializing group queue", "");
             printf(" (group=%s, key=%d, queue_id=%d)\n", groups[i].name, groups[i].key, groups[i].queue);
+            for (int j = 0; j < userQuantity; j++) {
+                groups[i].subscriptions[j] = 0;
+            }
+            logAction("INFO", "initializing group subscription list", "");
+            printf(" (group=%s)\n", groups[i].name);
         }
     }
 
@@ -66,7 +71,6 @@ int main(){
             bool success = false;
             key_t key;
 
-            char* delimiter = ":";
             char mode[32], login[32], password[32];
 
             strcpy(mode, strtok(buf.msgText, delimiter));
@@ -128,7 +132,6 @@ int main(){
 
             bool success = false;
 
-            char* delimiter = ":";
             char mode[32], login[32], search[32];
 
             strcpy(mode, strtok(buf.msgText, delimiter));
@@ -179,28 +182,92 @@ int main(){
                 // iterate through group structure to compare name with search
                 for (int i = 0; i < groupQuantity; i++) {
                     if (strcmp(groups[i].name, search) == 0) {
+                        // iterate through user structure to verify if user is subscribed to the group
+                        for (int j = 0; j < userQuantity; j++) {
+                            if (strcmp(users[j].login, login) == 0) {
+                                if (groups[i].subscriptions[j] == 1) {
+                                    sprintf(buf.msgText, "GROUP:%d", groups[i].key);
+                                } else {
+                                    strcpy(buf.msgText, "NOT_SUBSCRIBED");
+                                }
+                                break;
+                            }
+                        }
                         success = true;
-                        sprintf(buf.msgText, "GROUP:%d", groups[i].key);
                         break;
                     }
                 }
 
                 if (success) {
-                    if (msgsnd(authQueue, &buf, sizeof buf.msgText, 0) == -1) logError("SENDING GROUPS MESSAGE", errno);
+                    if (msgsnd(authQueue, &buf, sizeof buf.msgText, 0) == -1) logError("SENDING VERIFICATION", errno);
                     else logAction("REQUEST", "user/group verification", login);
+                } else {
+                    strcpy(buf.msgText, "FALSE");
+
+                    if (msgsnd(authQueue, &buf, sizeof buf.msgText, 0) == -1) logError("SENDING VERIFICATION", errno);
+                    else logAction("REQUEST", "user/group verification", login);
+                }
+            }
+
+            if (strcmp(mode, "SUBSCRIBE") == 0) {
+                strcpy(search, strtok(NULL, delimiter));
+
+                // iterate through group structure to compare name with search
+                for (int i = 0; i < groupQuantity; i++) {
+                    if (strcmp(groups[i].name, search) == 0) {
+                        success = true;
+                        strcpy(buf.msgText, "TRUE");
+                        for (int j = 0; j < userQuantity; j++) {
+                            if (strcmp(users[j].login, login) == 0) {
+                                groups[i].subscriptions[j] = 1;
+                                break;
+                            }
+                        }
+                        break;
+                    }
+                }
+
+                if (success) {
+                    if (msgsnd(authQueue, &buf, sizeof buf.msgText, 0) == -1) logError("SENDING VERIFICATION", errno);
+                    else logAction("REQUEST", "subscription to group chat", login);
                 } else {
                     strcpy(buf.msgText, "FALSE");;
 
-                    if (msgsnd(authQueue, &buf, sizeof buf.msgText, 0) == -1) logError("SENDING GROUPS MESSAGE", errno);
-                    else logAction("REQUEST", "user/group verification", login);
+                    if (msgsnd(authQueue, &buf, sizeof buf.msgText, 0) == -1) logError("SENDING VERIFICATION", errno);
+                }
+            }
+
+            if (strcmp(mode, "UNSUBSCRIBE") == 0) {
+                strcpy(search, strtok(NULL, delimiter));
+
+                // iterate through group structure to compare name with search
+                for (int i = 0; i < groupQuantity; i++) {
+                    if (strcmp(groups[i].name, search) == 0) {
+                        success = true;
+                        strcpy(buf.msgText, "TRUE");
+                        for (int j = 0; j < userQuantity; j++) {
+                            if (strcmp(users[j].login, login) == 0) {
+                                groups[i].subscriptions[j] = 0;
+                                break;
+                            }
+                        }
+                        break;
+                    }
+                }
+
+                if (success) {
+                    if (msgsnd(authQueue, &buf, sizeof buf.msgText, 0) == -1) logError("SENDING VERIFICATION", errno);
+                    else logAction("REQUEST", "unsubscription to group chat", login);
+                } else {
+                    strcpy(buf.msgText, "FALSE");;
+
+                    if (msgsnd(authQueue, &buf, sizeof buf.msgText, 0) == -1) logError("SENDING VERIFICATION", errno);
                 }
             }
         }
 
         // message forwarding
         if (msgrcv(serverQueue, &buf, sizeof buf.msgText, 0, IPC_NOWAIT) != -1) {
-
-            char* delimiter = ":";
             char mode[32], who[32], toWho[32];
             char *content = NULL;
 
@@ -299,18 +366,11 @@ user* usersFromFile(char* path) {
 
     char * line = NULL;
     size_t len = 0;
-    char delimiters[] = " ,.-:;";
-    char* token;
 
     while ((getline(&line, &len, file)) != -1) {
-
-        token = strtok(line, delimiters);
-        if (strcmp(token, "USER") == 0) {
-            token = strtok(NULL, delimiters);
-            strcpy(users[index].login, token);
-
-            token = strtok(NULL, delimiters);
-            strcpy(users[index].password, token);
+        if (strcmp(strtok(line, delimiter), "USER") == 0) {
+            strcpy(users[index].login, strtok(NULL, delimiter));
+            strcpy(users[index].password, strtok(NULL, delimiter));
             strtok(users[index].password, "\n");  // remove "\n" from string
 
             users[index].key = index + 1;
@@ -336,18 +396,11 @@ group* groupsFromFile(char* path) {
 
     char * line = NULL;
     size_t len = 0;
-    char delimiters[] = ":";
-    char* token;
 
     while ((getline(&line, &len, file)) != -1) {
-
-        token = strtok(line, delimiters);
-        if (strcmp(token, "GROUP") == 0) {
-            token = strtok(NULL, delimiters);
-            strcpy(groups[index].name, token);
-
-            token = strtok(NULL, delimiters);
-            strcpy(groups[index].description, token);
+        if (strcmp(strtok(line, delimiter), "GROUP") == 0) {
+            strcpy(groups[index].name, strtok(NULL, delimiter));
+            strcpy(groups[index].description, strtok(NULL, delimiter));
             strtok(groups[index].description, "\n");  // remove "\n" from string
 
             groups[index].key = index + 101;

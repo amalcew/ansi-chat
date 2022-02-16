@@ -18,6 +18,8 @@ key_t serverKey = 2151;
 long authTyp = 99;
 long comTyp = 199;
 
+char* delimiter = ":";
+
 int allowedAttempts = 3;
 
 #endif //ANSI_IRC_GLOBALS_H

@@ -20,6 +20,12 @@ int main(){
             } else if (strcmp(command, "?chat") == 0) {
                 chat(usr);
 
+            } else if (strcmp(command, "?subscribe") == 0) {
+                subscribe(usr);
+
+            } else if (strcmp(command, "?unsubscribe") == 0) {
+                unsubscribe(usr);
+
             } else if (strcmp(command, "?list-users") == 0) {
                 printUsers(usr);
 
@@ -46,6 +52,8 @@ void printHelp() {
     printf("?help - prints this commands list\n");
     printf("?vars - prints current session variables\n");
     printf("?chat - select the users to chat\n");
+    printf("?subscribe - select group to receive access\n");
+    printf("?unsubscribe - drop access to selected group\n");
     printf("?list-users - prints users list\n");
     printf("?list-groups - prints groups list\n");
     printf("?leave - close current session\n");
@@ -61,16 +69,10 @@ void printVars(user* usr) {
 }
 
 void chat(user* usr) {
-    key_t cQueue, mQueue;
+    key_t cQueue, mQueue, key;
     queuedMessage message;
-    key_t key;
 
-    char select[32];
-    char input[250];
-    char prefix[32];
-
-    char delimiters[] = " ,.-:;";
-    char* token;
+    char select[32], prefix[32], input[250], response[32];
 
     // initialize server communication queue
     if ((cQueue = msgget(authKey, IPC_CREAT | 0666 )) == -1) {
@@ -90,7 +92,7 @@ void chat(user* usr) {
 
     // prepare message
     sprintf(message.msgText, "CHAT:%s:%s", usr->login, select);
-    message.msgType = 199;
+    message.msgType = comTyp;
 
     // send selected username to server
     if (msgsnd(cQueue, &message, sizeof message.msgText, IPC_NOWAIT) == -1) {
@@ -102,13 +104,15 @@ void chat(user* usr) {
     while (true) {
         if (msgrcv(cQueue, &message, sizeof message.msgText, 198, IPC_NOWAIT) != -1) {
             // tokenize the response
-            token = strtok(message.msgText, delimiters);
+            strcpy(response, strtok(message.msgText, delimiter));
 
-            // if first token is 'TRUE', continue this function the user
-            if (!(strcmp(token, "FALSE") == 0)) {
-                strcpy(prefix, token);
-                token = strtok(NULL, delimiters);
-                sscanf(token, "%d", &key);  // convert token to integer
+            // validate first token
+            if (strcmp(response, "NOT_SUBSCRIBED") == 0) {
+                printf(ANSI_COLOR_YELLOW "You are not subscribed to %s\n" ANSI_COLOR_RESET, select);
+                return;
+            } else if (!(strcmp(response, "FALSE") == 0)) {
+                strcpy(prefix, response);
+                sscanf(strtok(NULL, delimiter), "%d", &key);  // convert token to integer
                 break;
             } else {
                 printf(ANSI_COLOR_YELLOW "There is no such user/group as %s\n" ANSI_COLOR_RESET, select);
@@ -166,6 +170,90 @@ void chat(user* usr) {
                         exit(-1);
                     }
                 }
+            }
+        }
+    }
+}
+
+void subscribe(user* usr) {
+    key_t cQueue;
+    queuedMessage message;
+
+    char select[32];
+
+    // initialize server communication queue
+    if ((cQueue = msgget(authKey, IPC_CREAT | 0666 )) == -1) {
+        perror("Error initializing queue");
+        exit(-1);
+    }
+
+    printf("Type group to subscribe: ");
+    fgets(select, sizeof(select), stdin);  // read user from stdin
+    strtok(select, "\n");  // remove '\n' from user
+
+    // prepare message
+    sprintf(message.msgText, "SUBSCRIBE:%s:%s", usr->login, select);
+    message.msgType = comTyp;
+
+    // send selected username to server
+    if (msgsnd(cQueue, &message, sizeof message.msgText, IPC_NOWAIT) == -1) {
+        perror("Error sending credentials");
+        exit(-1);
+    }
+
+    // wait for server response
+    while (true) {
+        if (msgrcv(cQueue, &message, sizeof message.msgText, 198, IPC_NOWAIT) != -1) {
+
+            // if response is not 'FALSE', continue
+            if (!(strcmp(message.msgText, "FALSE") == 0)) {
+                printf("ok\n");
+                break;
+            } else {
+                printf(ANSI_COLOR_YELLOW "There is no such group as %s\n" ANSI_COLOR_RESET, select);
+                return;
+            }
+        }
+    }
+}
+
+void unsubscribe(user* usr) {
+    key_t cQueue;
+    queuedMessage message;
+
+    char select[32];
+
+    // initialize server communication queue
+    if ((cQueue = msgget(authKey, IPC_CREAT | 0666 )) == -1) {
+        perror("Error initializing queue");
+        exit(-1);
+    }
+
+    printf("Type group to unsubscribe: ");
+    fgets(select, sizeof(select), stdin);  // read user from stdin
+    strtok(select, "\n");  // remove '\n' from user
+
+    // prepare message
+    sprintf(message.msgText, "UNSUBSCRIBE:%s:%s", usr->login, select);
+    message.msgType = comTyp;
+
+    // send selected username to server
+    if (msgsnd(cQueue, &message, sizeof message.msgText, IPC_NOWAIT) == -1) {
+        perror("Error sending credentials");
+        exit(-1);
+    }
+
+    // wait for server response
+    while (true) {
+        if (msgrcv(cQueue, &message, sizeof message.msgText, 198, IPC_NOWAIT) != -1) {
+
+            // if response is not 'FALSE', continue
+            if (!(strcmp(message.msgText, "FALSE") == 0)) {
+                printf("ok\n");
+                break;
+            } else {
+                printf(ANSI_COLOR_YELLOW "There is no such group as %s\n" ANSI_COLOR_RESET, select);
+                return;
             }
         }
     }
@@ -239,9 +327,6 @@ user* authenticate() {
     key_t queue;
     queuedMessage message;
 
-    char delimiters[] = " ,.-:;";
-    char* token;
-
     // initialize server communication queue
     if ((queue = msgget(authKey, IPC_CREAT | 0666 )) == -1) {
         perror("Error creating queue");
@@ -270,25 +355,20 @@ user* authenticate() {
         // wait for server response
         while (true) {
             if (msgrcv(queue, &message, sizeof message.msgText, authTyp - 1, IPC_NOWAIT) != -1) {
-                // tokenize the response
-                token = strtok(message.msgText, delimiters);
 
                 // if first token is 'TRUE', authorize the user
-                if (strcmp(token, "TRUE") == 0) {
+                if (strcmp(strtok(message.msgText, delimiter), "TRUE") == 0) {
                     // initialize user structure
                     user *usr = malloc(sizeof(user));
 
                     // tokenize user login
-                    token = strtok(NULL, delimiters);
-                    strcpy(usr->login, token);
+                    strcpy(usr->login, strtok(NULL, delimiter));
 
                     // tokenize user password
-                    token = strtok(NULL, delimiters);
-                    strcpy(usr->password, token);
+                    strcpy(usr->password, strtok(NULL, delimiter));
 
                     // tokenize user key
-                    token = strtok(NULL, delimiters);
-                    sscanf(token, "%d", &usr->key);  // convert token to integer
+                    sscanf(strtok(NULL, delimiter), "%d", &usr->key);  // convert token to integer
 
                     // initialize user queue
                     if ((usr->queue = msgget(usr->key, IPC_CREAT | 0666 )) == -1) {
