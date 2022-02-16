@@ -15,6 +15,7 @@
 #include "user.h"
 
 void printHelp();
+void printChatHelp();
 void printVars(user* usr);
 void chat(user* usr);
 void subscribe(user* usr);

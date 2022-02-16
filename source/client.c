@@ -5,38 +5,38 @@ int main(){
         char command[32];
         user *usr = authenticate();  // authenticate  the user
 
-        printf(ANSI_COLOR_GREEN "Welcome %s!\n" ANSI_COLOR_RESET "type '?help' to get the list of commands\n", usr->login);
+        printf(ANSI_COLOR_GREEN "Welcome %s!\n" ANSI_COLOR_RESET "type 'help' to get the list of commands\n", usr->login);
         while (true) {  // main loop
             printf(ANSI_COLOR_RESET ": " ANSI_COLOR_RESET);
             fgets(command, sizeof(command), stdin);  // read command from stdin
             strtok(command, "\n");  // remove '\n' from command
 
-            if (strcmp(command, "?help") == 0) {
+            if (strcmp(command, "help") == 0) {
                 printHelp();
 
-            } else if (strcmp(command, "?vars") == 0) {
+            } else if (strcmp(command, "vars") == 0) {
                 printVars(usr);
 
-            } else if (strcmp(command, "?chat") == 0) {
+            } else if (strcmp(command, "chat") == 0) {
                 chat(usr);
 
-            } else if (strcmp(command, "?subscribe") == 0) {
+            } else if (strcmp(command, "subscribe") == 0) {
                 subscribe(usr);
 
-            } else if (strcmp(command, "?unsubscribe") == 0) {
+            } else if (strcmp(command, "unsubscribe") == 0) {
                 unsubscribe(usr);
 
-            } else if (strcmp(command, "?list-users") == 0) {
+            } else if (strcmp(command, "list-users") == 0) {
                 printUsers(usr);
 
-            } else if (strcmp(command, "?list-groups") == 0) {
+            } else if (strcmp(command, "list-groups") == 0) {
                 printGroups(usr);
 
-            } else if (strcmp(command, "?leave") == 0) {
+            } else if (strcmp(command, "leave") == 0) {
                 deauthenticate(usr);
                 break;
 
-            } else if (strcmp(command, "?exit") == 0) {
+            } else if (strcmp(command, "exit") == 0) {
                 printf("Exiting...\n");
                 deauthenticate(usr);
                 return 0;
@@ -49,14 +49,20 @@ int main(){
 }
 
 void printHelp() {
+    printf("help - prints this commands list\n");
+    printf("vars - prints current session variables\n");
+    printf("chat - select the users to chat\n");
+    printf("subscribe - select group to receive access\n");
+    printf("unsubscribe - drop access to selected group\n");
+    printf("list-users - prints users list\n");
+    printf("list-groups - prints groups list\n");
+    printf("leave - close current session\n");
+    printf("exit - closes the client program\n");
+}
+
+void printChatHelp() {
     printf("?help - prints this commands list\n");
-    printf("?vars - prints current session variables\n");
-    printf("?chat - select the users to chat\n");
-    printf("?subscribe - select group to receive access\n");
-    printf("?unsubscribe - drop access to selected group\n");
-    printf("?list-users - prints users list\n");
-    printf("?list-groups - prints groups list\n");
-    printf("?leave - close current session\n");
+    printf("?back - closes the current chat and returns to main menu\n");
     printf("?exit - closes the client program\n");
 }
 
@@ -121,7 +127,7 @@ void chat(user* usr) {
         }
     }
     while (true) {
-        printf("Type something!\n");
+        printf("Chatting with " ANSI_COLOR_GREEN "%s" ANSI_COLOR_RESET "\nType '?help' to get the list of chat commands\n", select);
 
         int pid = fork();
         if (pid == -1) {
@@ -148,22 +154,29 @@ void chat(user* usr) {
                 message.msgType = key;
 
                 // if message is special string, execute command
-                if (strcmp(input, "?exit") == 0) {
-                    printf("Exiting...\n");
-                    if (kill(pid, SIGTERM) == -1) {
-                        perror("Error killing child process");
-                    }
-                    wait(&pid);  // wait for child process to end not to generate zombies
-                    deauthenticate(usr);
-                    exit(0);
+                if (input[0] == '?') {
+                    if (strcmp(input, "?help") == 0) {
+                        printChatHelp();
+                    } else if (strcmp(input, "?exit") == 0) {
+                        printf("Exiting...\n");
+                        if (kill(pid, SIGTERM) == -1) {
+                            perror("Error killing child process");
+                        }
+                        wait(&pid);  // wait for child process to end not to generate zombies
+                        deauthenticate(usr);
+                        exit(0);
 
-                } else if (strcmp(input, "?back") == 0) {
-                    if (kill(pid, SIGTERM) == -1) {
-                        perror("Error killing child process");
-                    }
-                    wait(&pid);  // wait for child process to end not to generate zombies
-                    return;
+                    } else if (strcmp(input, "?back") == 0) {
+                        printf("Returning to main menu...\n");
+                        if (kill(pid, SIGTERM) == -1) {
+                            perror("Error killing child process");
+                        }
+                        wait(&pid);  // wait for child process to end not to generate zombies
+                        return;
 
+                    } else {
+                        printf("Unknown command, type '?help' to get a list of commands\n");
+                    }
                 } else {;
                     if (msgsnd(mQueue, &message, sizeof message.msgText, IPC_NOWAIT) == -1) {
                         perror("Error sending message");
