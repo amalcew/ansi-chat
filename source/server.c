@@ -160,7 +160,14 @@ int main(){
                     strcat(buf.msgText, groups[i].name);
                     strcat(buf.msgText, " - ");
                     strcat(buf.msgText, groups[i].description);
-                    strcat(buf.msgText, "\n");
+                    strcat(buf.msgText, "\nUsers subscribed to this group: ");
+                    for (int j = 0; j < userQuantity; j++) {
+                        if (groups[i].subscriptions[j] == 1) {
+                            strcat(buf.msgText, users[j].login);
+                            strcat(buf.msgText, ", ");
+                        }
+                    }
+                    strcat(buf.msgText, "\n\n");
                 }
 
                 if (msgsnd(authQueue, &buf, sizeof buf.msgText, 0) == -1) logError("SENDING GROUPS LIST", errno);
