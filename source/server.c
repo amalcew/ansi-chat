@@ -321,7 +321,8 @@ int main(){
             perror("Error removing queue");
             exit(-1);
         }
-        free(users);
+        if (users) free(users);
+        if (groups) free(groups);
         return 0;
     }
 }
@@ -399,7 +400,7 @@ group* groupsFromFile(char* path) {
     }
     int howManyGroups = countLines(path);
     int index = 0;
-    group *groups = malloc(sizeof(user) * howManyGroups);
+    group *groups = malloc(sizeof(group) * howManyGroups);
 
     char * line = NULL;
     size_t len = 0;
